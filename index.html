@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>플립 7 (Flip 7) 실시간 점수판</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @keyframes fadeOutUp {
@@ -50,8 +48,7 @@
                     <span id="display-room-code" class="text-xl font-mono font-bold text-amber-400 tracking-wider">----</span>
                 </div>
                 <div class="text-right relative">
-                    <span class="text-xs text-slate-400 block">내 점수</span>
-                    <!-- 방금 획득한 점수 표시용 요소 -->
+                    <span class="text-xs text-slate-400 block">내 총 점수</span>
                     <span id="last-added-score" class="absolute -top-6 right-0 text-amber-400 font-bold text-lg opacity-0"></span>
                     <span id="my-score" class="text-2xl font-black text-emerald-400">0점</span>
                 </div>
@@ -69,12 +66,20 @@
                 </div>
             </div>
 
+            <!-- 순위 보드 -->
             <div>
                 <h2 class="text-sm font-semibold text-slate-300 mb-2 flex items-center justify-between">
                     <span>🏆 실시간 순위 보드</span>
-                    <span class="text-xs text-amber-400 animate-pulse">● 실시간 동기화 중</span>
                 </h2>
-                <div id="leaderboard" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
+                <div id="leaderboard" class="space-y-2 max-h-40 overflow-y-auto pr-1"></div>
+            </div>
+
+            <!-- 득점 로그 -->
+            <div>
+                <h2 class="text-sm font-semibold text-slate-300 mb-2">📜 최근 득점 로그</h2>
+                <div id="score-log-list" class="space-y-1 max-h-32 overflow-y-auto pr-1 text-xs text-slate-400 bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+                    <p>게임이 시작되었습니다.</p>
+                </div>
             </div>
         </div>
 
@@ -86,7 +91,6 @@
     <script>
         const SUPABASE_URL = 'https://ebgziywanxwxqohxhvam.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ3ppeXdhbnh3eHFvaHhodmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0Njc2MjQsImV4cCI6MjEwMjA0MzYyNH0.FUGQjkx6Hv801UeeE_Ti7XXlVPRiG1bOIuHTEJXDRBA';
-        
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentRoomCode = null;
@@ -97,7 +101,7 @@
             const el = document.getElementById('last-added-score');
             el.innerText = `+${val}`;
             el.classList.remove('animate-score');
-            void el.offsetWidth; // 리플로우 강제 (애니메이션 재시작)
+            void el.offsetWidth;
             el.classList.add('animate-score');
         }
 
@@ -108,14 +112,21 @@
             
             myCurrentScore += inputVal;
             document.getElementById('my-score').innerText = myCurrentScore + '점';
-            showLastAddedScore(inputVal); // 추가된 점수 표시
+            showLastAddedScore(inputVal);
             inputEl.value = '';
             
             await supabaseClient.from('players').update({ score: myCurrentScore }).eq('id', myPlayerId);
+
+            const myName = document.getElementById('player-name').value;
+            supabaseClient.channel('room-channel-' + currentRoomCode).send({
+                type: 'broadcast',
+                event: 'score_log',
+                payload: { name: myName, score: inputVal }
+            });
         }
 
-        // ... (나머지 함수들은 이전과 동일)
         function generateRoomCode() { return Math.random().toString(36).substring(2, 6).toUpperCase(); }
+        
         async function createRoom() {
             const name = document.getElementById('player-name').value.trim();
             if (!name) { alert('닉네임을 입력해주세요!'); return; }
@@ -124,6 +135,7 @@
             const { data } = await supabaseClient.from('players').insert([{ room_code: code, name: name, score: 0 }]).select();
             currentRoomCode = code; myPlayerId = data[0].id; myCurrentScore = 0; enterGameUI();
         }
+
         async function joinRoom() {
             const name = document.getElementById('player-name').value.trim();
             const code = document.getElementById('room-code-input').value.trim().toUpperCase();
@@ -133,20 +145,24 @@
             const { data } = await supabaseClient.from('players').insert([{ room_code: code, name: name, score: 0 }]).select();
             currentRoomCode = code; myPlayerId = data[0].id; myCurrentScore = 0; enterGameUI();
         }
+
         function enterGameUI() {
             document.getElementById('lobby-section').classList.add('hidden');
             document.getElementById('game-section').classList.remove('hidden');
             document.getElementById('display-room-code').innerText = currentRoomCode;
             fetchLeaderboard(); subscribeRealtime();
         }
+
         async function resetMyScore() {
             myCurrentScore = 0; document.getElementById('my-score').innerText = '0점';
             await supabaseClient.from('players').update({ score: 0 }).eq('id', myPlayerId);
         }
+
         async function fetchLeaderboard() {
             const { data } = await supabaseClient.from('players').select('*').eq('room_code', currentRoomCode).order('score', { ascending: false });
             if (data) renderLeaderboard(data);
         }
+
         function renderLeaderboard(players) {
             const container = document.getElementById('leaderboard'); container.innerHTML = '';
             players.forEach((player, index) => {
@@ -157,11 +173,21 @@
                 container.appendChild(item);
             });
         }
+
         function subscribeRealtime() {
-            supabaseClient.channel('room-channel-' + currentRoomCode)
+            const channel = supabaseClient.channel('room-channel-' + currentRoomCode);
+            channel
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: `room_code=eq.${currentRoomCode}` }, () => fetchLeaderboard())
+                .on('broadcast', { event: 'score_log' }, (payload) => {
+                    const logList = document.getElementById('score-log-list');
+                    const newLog = document.createElement('p');
+                    newLog.innerText = `● ${payload.payload.name}님: +${payload.payload.score}점`;
+                    logList.prepend(newLog);
+                    if (logList.children.length > 15) logList.lastElementChild.remove();
+                })
                 .subscribe();
         }
+
         async function leaveRoom() {
             if (myPlayerId) await supabaseClient.from('players').delete().eq('id', myPlayerId);
             location.reload();

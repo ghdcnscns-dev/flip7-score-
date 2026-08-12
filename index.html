@@ -55,12 +55,39 @@
             </div>
 
             <div class="bg-slate-700/30 p-4 rounded-xl border border-slate-700 space-y-3">
-                <h2 class="text-sm font-semibold text-slate-300">내 카드 점수 입력</h2>
+                <div class="flex justify-between items-center">
+                    <h2 class="text-sm font-semibold text-slate-300">내 카드 점수 입력</h2>
+                    <button onclick="toggleCalculator()" class="text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 px-3 py-1.5 rounded-lg font-bold transition cursor-pointer">
+                        🧮 계산기 열기/닫기
+                    </button>
+                </div>
+
+                <!-- 점수 입력 및 더하기/빼기 버튼 -->
                 <div class="flex gap-2">
-                    <input type="number" id="card-score-input" placeholder="점수 입력" class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 focus:outline-none focus:border-amber-400">
+                    <input type="number" id="card-score-input" placeholder="점수 입력" class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 focus:outline-none focus:border-amber-400 text-lg font-bold">
                     <button onclick="modifyScore(true)" class="bg-emerald-600 hover:bg-emerald-700 font-bold px-4 py-2 rounded-lg transition cursor-pointer whitespace-nowrap">더하기</button>
                     <button onclick="modifyScore(false)" class="bg-rose-600 hover:bg-rose-700 font-bold px-4 py-2 rounded-lg transition cursor-pointer whitespace-nowrap">빼기</button>
                 </div>
+
+                <!-- 미니 계산기 패널 (처음엔 안 보이도록 display 제어 추가) -->
+                <div id="calculator-panel" style="display: none;" class="bg-slate-900/90 p-3 rounded-lg border border-slate-600 space-y-2">
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <button onclick="appendNum(1)" class="bg-slate-700 hover:bg-slate-600 py-2.5 rounded font-bold text-lg transition cursor-pointer">1</button>
+                        <button onclick="appendNum(2)" class="bg-slate-700 hover:bg-slate-600 py-2.5 rounded font-bold text-lg transition cursor-pointer">2</button>
+                        <button onclick="appendNum(3)" class="bg-slate-700 hover:bg-slate-600 py-2.5 rounded font-bold text-lg transition cursor-pointer">3</button>
+                        <button onclick="appendNum(4)" class="bg-slate-700 hover:bg-slate-600 py-2.5 rounded font-bold text-lg transition cursor-pointer">4</button>
+                        <button onclick="appendNum(5)" class="bg-slate-700 hover:bg-slate-600 py-2.5 rounded font-bold text-lg transition cursor-pointer">5</button>
+                        <button onclick="appendNum(6)" class="bg-slate-700 hover:bg-slate-600 py-2.5 rounded font-bold text-lg transition cursor-pointer">6</button>
+                        <button onclick="appendNum(7)" class="bg-slate-700 hover:bg-slate-600 py-2.5 rounded font-bold text-lg transition cursor-pointer">7</button>
+                        <button onclick="appendNum(8)" class="bg-slate-700 hover:bg-slate-600 py-2.5 rounded font-bold text-lg transition cursor-pointer">8</button>
+                        <button onclick="appendNum(9)" class="bg-slate-700 hover:bg-slate-600 py-2.5 rounded font-bold text-lg transition cursor-pointer">9</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button onclick="appendNum(0)" class="bg-slate-700 hover:bg-slate-600 py-2.5 rounded font-bold text-lg transition cursor-pointer">0</button>
+                        <button onclick="clearCalcInput()" class="bg-rose-900/80 hover:bg-rose-800 py-2.5 rounded font-bold text-sm text-rose-200 transition cursor-pointer">지우기</button>
+                    </div>
+                </div>
+
                 <div class="flex gap-2 pt-1">
                     <button onclick="resetMyScore()" class="w-1/2 bg-rose-600/80 hover:bg-rose-700 font-medium py-2 rounded-lg text-sm transition cursor-pointer">내 점수 초기화</button>
                     <button onclick="leaveRoom()" class="w-1/2 bg-slate-600 hover:bg-slate-500 font-medium py-2 rounded-lg text-sm transition cursor-pointer">나가기</button>
@@ -97,6 +124,32 @@
         let currentRoomCode = null;
         let myPlayerId = null;
         let myCurrentScore = 0;
+
+        // 계산기 열고 닫기 (style.display 활용으로 확실하게 제어)
+        function toggleCalculator() {
+            const panel = document.getElementById('calculator-panel');
+            if (panel.style.display === 'none' || panel.style.display === '') {
+                panel.style.display = 'block';
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        // 계산기 숫자 입력 기능
+        function appendNum(num) {
+            const inputEl = document.getElementById('card-score-input');
+            const currentVal = inputEl.value;
+            if (!currentVal || currentVal === '0') {
+                inputEl.value = num;
+            } else {
+                inputEl.value = currentVal + num;
+            }
+        }
+
+        // 계산기 입력 지우기 기능
+        function clearCalcInput() {
+            document.getElementById('card-score-input').value = '';
+        }
 
         function showScoreAnimation(val, isAdd) {
             const el = document.getElementById('last-added-score');
@@ -163,7 +216,6 @@
         }
 
         async function resetMyScore() {
-            // 초기화하기 직전의 점수 저장
             const previousScore = myCurrentScore;
 
             myCurrentScore = 0; 

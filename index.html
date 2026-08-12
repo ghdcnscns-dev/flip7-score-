@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>플립 7 (Flip 7) 실시간 점수판</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl p-6 border border-slate-700">
+        <h1 class="text-3xl font-black text-center mb-6 text-amber-400">🎲 FLIP 7 실시간 점수판</h1>
+
+        <!-- 1. 로비 화면 -->
+        <div id="lobby-section" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">닉네임</label>
+                <input type="text" id="player-name" placeholder="본인 닉네임 입력" class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 focus:outline-none focus:border-amber-400">
+            </div>
+            
+            <div class="pt-2 border-t border-slate-700 space-y-3">
+                <button onclick="createRoom()" class="w-full bg-amber-500 hover:bg-amber-600 font-bold py-3 rounded-lg text-slate-950 transition cursor-pointer">
+                    방 만들기 (참가코드 생성)
+                </button>
+                
+                <div class="flex gap-2">
+                    <input type="text" id="room-code-input" placeholder="참가코드 4자리" class="w-1/2 px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 uppercase focus:outline-none focus:border-amber-400 text-center font-bold tracking-widest">
+                    <button onclick="joinRoom()" class="w-1/2 bg-blue-600 hover:bg-blue-700 font-bold py-2 rounded-lg transition cursor-pointer">
+                        참여하기
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 게임 화면 -->
+        <div id="game-section" class="hidden space-y-6">
+            <div class="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg border border-slate-700">
+                <div>
+                    <span class="text-xs text-slate-400 block">참가 코드</span>
+                    <span id="display-room-code" class="text-xl font-mono font-bold text-amber-400 tracking-wider">----</span>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs text-slate-400 block">내 점수</span>
+                    <span id="my-score" class="text-2xl font-black text-emerald-400">0점</span>
+                </div>
+            </div>
+
+            <div class="bg-slate-700/30 p-4 rounded-xl border border-slate-700 space-y-3">
+                <h2 class="text-sm font-semibold text-slate-300">내 카드 점수 입력</h2>
+                <div class="flex gap-2">
+                    <input type="number" id="card-score-input" placeholder="획득한 점수/숫자 입력" class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 focus:outline-none focus:border-amber-400">
+                    <button onclick="addScore()" class="bg-emerald-600 hover:bg-emerald-700 font-bold px-5 py-2 rounded-lg transition cursor-pointer whitespace-nowrap">더하기</button>
+                </div>
+                <div class="flex gap-2 pt-1">
+                    <button onclick="resetMyScore()" class="w-1/2 bg-rose-600/80 hover:bg-rose-700 font-medium py-2 rounded-lg text-sm transition cursor-pointer">내 점수 초기화</button>
+                    <button onclick="leaveRoom()" class="w-1/2 bg-slate-600 hover:bg-slate-500 font-medium py-2 rounded-lg text-sm transition cursor-pointer">나가기</button>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-sm font-semibold text-slate-300 mb-2 flex items-center justify-between">
+                    <span>🏆 실시간 순위 보드</span>
+                    <span class="text-xs text-amber-400 animate-pulse">● 실시간 동기화 중</span>
+                </h2>
+                <div id="leaderboard" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase 설정 완료
+        const SUPABASE_URL = 'https://ebgziywanxwxqohxhvam.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ3ppeXdhbnh3eHFvaHhodmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0Njc2MjQsImV4cCI6MjEwMjA0MzYyNH0.FUGQjkx6Hv801UeeE_Ti7XXlVPRiG1bOIuHTEJXDRBA';
+        
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentRoomCode = null;
+        let myPlayerId = null;
+        let myCurrentScore = 0;
+
+        function generateRoomCode() {
+            return Math.random().toString(36).substring(2, 6).toUpperCase();
+        }
+
+        async function createRoom() {
+            const name = document.getElementById('player-name').value.trim();
+            if (!name) { alert('닉네임을 입력해주세요!'); return; }
+
+            const code = generateRoomCode();
+            const { error: roomError } = await supabaseClient.from('rooms').insert([{ code }]);
+            if (roomError) { alert('방 생성 오류: ' + roomError.message); return; }
+
+            const { data, error: playerError } = await supabaseClient
+                .from('players')
+                .insert([{ room_code: code, name: name, score: 0 }])
+                .select();
+
+            if (playerError) { alert('플레이어 등록 오류: ' + playerError.message); return; }
+
+            currentRoomCode = code;
+            myPlayerId = data[0].id;
+            myCurrentScore = 0;
+            enterGameUI();
+        }
+
+        async function joinRoom() {
+            const name = document.getElementById('player-name').value.trim();
+            const code = document.getElementById('room-code-input').value.trim().toUpperCase();
+
+            if (!name) { alert('닉네임을 입력해주세요!'); return; }
+            if (!code || code.length !== 4) { alert('4자리 참가코드를 입력해주세요!'); return; }
+
+            const { data: roomData, error: roomError } = await supabaseClient
+                .from('rooms')
+                .select('code')
+                .eq('code', code)
+                .single();
+
+            if (roomError || !roomData) { alert('존재하지 않는 참가코드입니다.'); return; }
+
+            const { data, error: playerError } = await supabaseClient
+                .from('players')
+                .insert([{ room_code: code, name: name, score: 0 }])
+                .select();
+
+            if (playerError) { alert('참가 오류: ' + playerError.message); return; }
+
+            currentRoomCode = code;
+            myPlayerId = data[0].id;
+            myCurrentScore = 0;
+            enterGameUI();
+        }
+
+        function enterGameUI() {
+            document.getElementById('lobby-section').classList.add('hidden');
+            document.getElementById('game-section').classList.remove('hidden');
+            document.getElementById('display-room-code').innerText = currentRoomCode;
+            fetchLeaderboard();
+            subscribeRealtime();
+        }
+
+        async function addScore() {
+            const inputVal = parseInt(document.getElementById('card-score-input').value);
+            if (isNaN(inputVal)) { alert('점수를 입력해주세요!'); return; }
+            myCurrentScore += inputVal;
+            document.getElementById('my-score').innerText = myCurrentScore + '점';
+            document.getElementById('card-score-input').value = '';
+            await supabaseClient.from('players').update({ score: myCurrentScore }).eq('id', myPlayerId);
+        }
+
+        async function resetMyScore() {
+            myCurrentScore = 0;
+            document.getElementById('my-score').innerText = '0점';
+            await supabaseClient.from('players').update({ score: 0 }).eq('id', myPlayerId);
+        }
+
+        async function fetchLeaderboard() {
+            const { data, error } = await supabaseClient
+                .from('players')
+                .select('*')
+                .eq('room_code', currentRoomCode)
+                .order('score', { ascending: false });
+            if (!error) renderLeaderboard(data);
+        }
+
+        function renderLeaderboard(players) {
+            const container = document.getElementById('leaderboard');
+            container.innerHTML = '';
+            players.forEach((player, index) => {
+                const isMe = player.id === myPlayerId;
+                const item = document.createElement('div');
+                item.className = `flex justify-between items-center p-3 rounded-lg border ${isMe ? 'bg-amber-500/10 border-amber-500/40' : 'bg-slate-700/40 border-slate-700'}`;
+                item.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="w-6 text-center text-lg ${index === 0 ? 'text-amber-400 font-bold' : 'text-slate-400'}">${index + 1}등</span>
+                        <span class="font-medium text-slate-200">${player.name} ${isMe ? '(나)' : ''}</span>
+                    </div>
+                    <span class="font-bold text-lg text-emerald-400">${player.score}점</span>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function subscribeRealtime() {
+            supabaseClient
+                .channel('room-channel-' + currentRoomCode)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: `room_code=eq.${currentRoomCode}` }, () => fetchLeaderboard())
+                .subscribe();
+        }
+
+        async function leaveRoom() {
+            if (myPlayerId) await supabaseClient.from('players').delete().eq('id', myPlayerId);
+            location.reload();
+        }
+    </script>
+</body>
+</html>

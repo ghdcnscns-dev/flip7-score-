@@ -112,7 +112,6 @@
             let inputVal = parseInt(inputEl.value);
             if (isNaN(inputVal)) { alert('점수를 입력해주세요!'); return; }
             
-            // 음수를 입력했을 경우의 예외 처리 (빼기 버튼일 때 양수로 변환해서 빼주기)
             if (inputVal < 0) inputVal = Math.abs(inputVal);
 
             if (isAdd) {
@@ -131,7 +130,7 @@
             supabaseClient.channel('room-channel-' + currentRoomCode).send({
                 type: 'broadcast',
                 event: 'score_log',
-                payload: { name: myName, score: inputVal, isAdd: isAdd }
+                payload: { name: myName, score: inputVal, isAdd: isAdd, type: 'modify' }
             });
         }
 
@@ -164,8 +163,19 @@
         }
 
         async function resetMyScore() {
-            myCurrentScore = 0; document.getElementById('my-score').innerText = '0점';
+            // 초기화하기 직전의 점수 저장
+            const previousScore = myCurrentScore;
+
+            myCurrentScore = 0; 
+            document.getElementById('my-score').innerText = '0점';
             await supabaseClient.from('players').update({ score: 0 }).eq('id', myPlayerId);
+
+            const myName = document.getElementById('player-name').value;
+            supabaseClient.channel('room-channel-' + currentRoomCode).send({
+                type: 'broadcast',
+                event: 'score_log',
+                payload: { name: myName, type: 'reset', prevScore: previousScore }
+            });
         }
 
         async function fetchLeaderboard() {
@@ -191,9 +201,15 @@
                 .on('broadcast', { event: 'score_log' }, (payload) => {
                     const logList = document.getElementById('score-log-list');
                     const newLog = document.createElement('p');
-                    const sign = payload.payload.isAdd ? '+' : '-';
-                    const colorClass = payload.payload.isAdd ? 'text-emerald-400' : 'text-rose-400';
-                    newLog.innerHTML = `● ${payload.payload.name}님: <span class="${colorClass}">${sign}${payload.payload.score}점</span>`;
+                    
+                    if (payload.payload.type === 'reset') {
+                        newLog.innerHTML = `● ${payload.payload.name}님: <span class="text-amber-400">누적 점수 ${payload.payload.prevScore}점에서 초기화되었습니다.</span>`;
+                    } else {
+                        const sign = payload.payload.isAdd ? '+' : '-';
+                        const colorClass = payload.payload.isAdd ? 'text-emerald-400' : 'text-rose-400';
+                        newLog.innerHTML = `● ${payload.payload.name}님: <span class="${colorClass}">${sign}${payload.payload.score}점</span>`;
+                    }
+                    
                     logList.prepend(newLog);
                     if (logList.children.length > 15) logList.lastElementChild.remove();
                 })

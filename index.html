@@ -49,7 +49,7 @@
                 </div>
                 <div class="text-right relative">
                     <span class="text-xs text-slate-400 block">내 총 점수</span>
-                    <span id="last-added-score" class="absolute -top-6 right-0 text-amber-400 font-bold text-lg opacity-0"></span>
+                    <span id="last-added-score" class="absolute -top-6 right-0 font-bold text-lg opacity-0"></span>
                     <span id="my-score" class="text-2xl font-black text-emerald-400">0점</span>
                 </div>
             </div>
@@ -57,8 +57,9 @@
             <div class="bg-slate-700/30 p-4 rounded-xl border border-slate-700 space-y-3">
                 <h2 class="text-sm font-semibold text-slate-300">내 카드 점수 입력</h2>
                 <div class="flex gap-2">
-                    <input type="number" id="card-score-input" placeholder="획득한 점수 입력" class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 focus:outline-none focus:border-amber-400">
-                    <button onclick="addScore()" class="bg-emerald-600 hover:bg-emerald-700 font-bold px-5 py-2 rounded-lg transition cursor-pointer whitespace-nowrap">더하기</button>
+                    <input type="number" id="card-score-input" placeholder="점수 입력" class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 focus:outline-none focus:border-amber-400">
+                    <button onclick="modifyScore(true)" class="bg-emerald-600 hover:bg-emerald-700 font-bold px-4 py-2 rounded-lg transition cursor-pointer whitespace-nowrap">더하기</button>
+                    <button onclick="modifyScore(false)" class="bg-rose-600 hover:bg-rose-700 font-bold px-4 py-2 rounded-lg transition cursor-pointer whitespace-nowrap">빼기</button>
                 </div>
                 <div class="flex gap-2 pt-1">
                     <button onclick="resetMyScore()" class="w-1/2 bg-rose-600/80 hover:bg-rose-700 font-medium py-2 rounded-lg text-sm transition cursor-pointer">내 점수 초기화</button>
@@ -76,7 +77,7 @@
 
             <!-- 득점 로그 -->
             <div>
-                <h2 class="text-sm font-semibold text-slate-300 mb-2">📜 최근 득점 로그</h2>
+                <h2 class="text-sm font-semibold text-slate-300 mb-2">📜 최근 점수 로그</h2>
                 <div id="score-log-list" class="space-y-1 max-h-32 overflow-y-auto pr-1 text-xs text-slate-400 bg-slate-900/50 p-2 rounded-lg border border-slate-800">
                     <p>게임이 시작되었습니다.</p>
                 </div>
@@ -97,22 +98,31 @@
         let myPlayerId = null;
         let myCurrentScore = 0;
 
-        function showLastAddedScore(val) {
+        function showScoreAnimation(val, isAdd) {
             const el = document.getElementById('last-added-score');
-            el.innerText = `+${val}`;
+            el.innerText = (isAdd ? `+${val}` : `-${val}`);
+            el.className = `absolute -top-6 right-0 font-bold text-lg opacity-0 ${isAdd ? 'text-emerald-400' : 'text-rose-400'}`;
             el.classList.remove('animate-score');
             void el.offsetWidth;
             el.classList.add('animate-score');
         }
 
-        async function addScore() {
+        async function modifyScore(isAdd) {
             const inputEl = document.getElementById('card-score-input');
-            const inputVal = parseInt(inputEl.value);
+            let inputVal = parseInt(inputEl.value);
             if (isNaN(inputVal)) { alert('점수를 입력해주세요!'); return; }
             
-            myCurrentScore += inputVal;
+            // 음수를 입력했을 경우의 예외 처리 (빼기 버튼일 때 양수로 변환해서 빼주기)
+            if (inputVal < 0) inputVal = Math.abs(inputVal);
+
+            if (isAdd) {
+                myCurrentScore += inputVal;
+            } else {
+                myCurrentScore -= inputVal;
+            }
+
             document.getElementById('my-score').innerText = myCurrentScore + '점';
-            showLastAddedScore(inputVal);
+            showScoreAnimation(inputVal, isAdd);
             inputEl.value = '';
             
             await supabaseClient.from('players').update({ score: myCurrentScore }).eq('id', myPlayerId);
@@ -121,7 +131,7 @@
             supabaseClient.channel('room-channel-' + currentRoomCode).send({
                 type: 'broadcast',
                 event: 'score_log',
-                payload: { name: myName, score: inputVal }
+                payload: { name: myName, score: inputVal, isAdd: isAdd }
             });
         }
 
@@ -181,7 +191,9 @@
                 .on('broadcast', { event: 'score_log' }, (payload) => {
                     const logList = document.getElementById('score-log-list');
                     const newLog = document.createElement('p');
-                    newLog.innerText = `● ${payload.payload.name}님: +${payload.payload.score}점`;
+                    const sign = payload.payload.isAdd ? '+' : '-';
+                    const colorClass = payload.payload.isAdd ? 'text-emerald-400' : 'text-rose-400';
+                    newLog.innerHTML = `● ${payload.payload.name}님: <span class="${colorClass}">${sign}${payload.payload.score}점</span>`;
                     logList.prepend(newLog);
                     if (logList.children.length > 15) logList.lastElementChild.remove();
                 })

@@ -3,38 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>플립 7 (Flip 7) 실시간 점수판</title>
+    <title>FLIP 7 : GRAND CIRCUS EDITION</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,700;0,900;1,900&family=Black+Han+Sans&display=swap" rel="stylesheet">
     <style>
-        @keyframes fadeOutUp {
-            0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-20px); }
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #1a0b2e;
+            background-image: 
+                radial-gradient(circle at 50% 20%, #4c1d95 0%, transparent 40%),
+                repeating-linear-gradient(45deg, rgba(245, 158, 11, 0.03) 0px, rgba(245, 158, 11, 0.03) 2px, transparent 2px, transparent 20px);
         }
-        .animate-score { animation: fadeOutUp 1.5s ease-out forwards; }
+        .circus-title {
+            font-family: 'Black Han Sans', sans-serif;
+            text-shadow: 3px 3px 0px #ef4444, 6px 6px 0px #0f172a;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(0%); }
+            100% { transform: translateX(-50%); }
+        }
+        .animate-marquee {
+            display: flex;
+            width: 200%;
+            animation: marquee 20s linear infinite;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-40px) scale(1.1); }
+        }
+        .animate-score-pop { animation: floatUp 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+        
+        /* 커스텀 스크롤바 */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(245, 158, 11, 0.4); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(245, 158, 11, 0.7); }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
+<body class="text-slate-100 min-h-screen flex flex-col items-center justify-between p-4 selection:bg-amber-500 selection:text-slate-950">
 
-    <div class="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl p-6 border border-slate-700">
-        <h1 class="text-3xl font-black text-center mb-6 text-amber-400">🎲 FLIP 7 실시간 점수판</h1>
+    <!-- 상단 무대 마키 배너 -->
+    <div class="w-full max-w-lg overflow-hidden bg-gradient-to-r from-red-600 via-amber-500 to-purple-600 py-1.5 rounded-full shadow-lg border border-amber-300/30 mb-4">
+        <div class="animate-marquee whitespace-nowrap text-xs font-black tracking-widest text-slate-950 uppercase">
+            <span>🎪 WELCOME TO THE FLIP 7 GRAND CIRCUS &nbsp;&bull;&nbsp; PUSH YOUR LUCK! &nbsp;&bull;&nbsp; </span>
+            <span>🎪 WELCOME TO THE FLIP 7 GRAND CIRCUS &nbsp;&bull;&nbsp; PUSH YOUR LUCK! &nbsp;&bull;&nbsp; </span>
+        </div>
+    </div>
+
+    <!-- 메인 컨테이너 -->
+    <div class="w-full max-w-lg bg-slate-900/90 backdrop-blur-md rounded-3xl shadow-[0_0_50px_rgba(76,29,149,0.3)] p-6 md:p-8 border-2 border-amber-500/30 relative overflow-hidden">
+        
+        <!-- 배경 장식용 원형 전구 효과 -->
+        <div class="absolute -top-12 -right-12 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+        <div class="absolute -bottom-12 -left-12 w-32 h-32 bg-purple-500/15 rounded-full blur-2xl pointer-events-none"></div>
+
+        <!-- 타이틀 -->
+        <div class="text-center mb-8 relative">
+            <span class="bg-red-500/20 text-red-400 text-xs font-bold px-3 py-1 rounded-full border border-red-500/30 tracking-widest uppercase inline-block mb-2">Push Your Luck Game</span>
+            <h1 class="text-4xl md:text-5xl font-black text-amber-400 circus-title tracking-wider">FLIP 7</h1>
+            <p class="text-xs text-slate-400 mt-1 font-medium">실시간 서커스 점수판 시스템</p>
+        </div>
 
         <!-- 1. 로비 화면 -->
-        <div id="lobby-section" class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-slate-300 mb-1">닉네임</label>
-                <input type="text" id="player-name" placeholder="본인 닉네임 입력" class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 focus:outline-none focus:border-amber-400">
+        <div id="lobby-section" class="space-y-6">
+            <div class="space-y-2">
+                <label class="block text-xs font-bold text-amber-400 tracking-wider uppercase">아크로뱃 닉네임</label>
+                <input type="text" id="player-name" placeholder="무대에 오를 이름을 입력하세요" class="w-full px-5 py-3.5 rounded-xl bg-slate-950/80 border-2 border-slate-700 focus:outline-none focus:border-amber-400 text-slate-100 placeholder-slate-600 font-bold transition shadow-inner">
             </div>
             
-            <div class="pt-2 border-t border-slate-700 space-y-3">
-                <button onclick="createRoom()" class="w-full bg-amber-500 hover:bg-amber-600 font-bold py-3 rounded-lg text-slate-950 transition cursor-pointer">
-                    방 만들기 (참가코드 생성)
+            <div class="pt-4 border-t border-slate-800 space-y-4">
+                <button onclick="createRoom()" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-4 rounded-xl shadow-[0_5px_20px_rgba(245,158,11,0.3)] transition transform active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 text-base">
+                    <span>🎪</span> 새로운 서커스단 창설 (방 만들기)
                 </button>
                 
-                <div class="flex gap-2">
-                    <input type="text" id="room-code-input" placeholder="참가코드 4자리" class="w-1/2 px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 uppercase focus:outline-none focus:border-amber-400 text-center font-bold tracking-widest">
-                    <button onclick="joinRoom()" class="w-1/2 bg-blue-600 hover:bg-blue-700 font-bold py-2 rounded-lg transition cursor-pointer">
-                        참여하기
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-slate-800"></div>
+                    <span class="flex-shrink mx-4 text-slate-500 text-xs font-bold uppercase tracking-widest">OR</span>
+                    <div class="flex-grow border-t border-slate-800"></div>
+                </div>
+
+                <div class="flex gap-2.5">
+                    <input type="text" id="room-code-input" placeholder="CODE" maxlength="4" class="w-2/5 px-4 py-3.5 rounded-xl bg-slate-950/80 border-2 border-slate-700 uppercase focus:outline-none focus:border-amber-400 text-center font-black tracking-widest text-amber-300 text-lg shadow-inner placeholder:text-slate-700 placeholder:font-normal">
+                    <button onclick="joinRoom()" class="w-3/5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-[0_5px_20px_rgba(37,99,235,0.3)] transition transform active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2">
+                        <span>🎟️</span> 입장하기
                     </button>
                 </div>
             </div>
@@ -43,99 +95,103 @@
         <!-- 2. 게임 화면 -->
         <div id="game-section" class="hidden space-y-6">
             <!-- 상단 정보 및 계산기 버튼 -->
-            <div class="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg border border-slate-700">
+            <div class="flex justify-between items-center bg-slate-950/60 p-4 rounded-2xl border border-slate-800 shadow-inner">
                 <div>
-                    <span class="text-xs text-slate-400 block">참가 코드</span>
-                    <span id="display-room-code" class="text-xl font-mono font-bold text-amber-400 tracking-wider">----</span>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Stage Code</span>
+                    <span id="display-room-code" class="text-2xl font-black font-mono text-amber-400 tracking-widest">----</span>
                 </div>
                 <div class="flex items-center gap-3">
                     <div class="text-right relative">
-                        <span class="text-xs text-slate-400 block">내 총 점수</span>
-                        <span id="last-added-score" class="absolute -top-6 right-0 font-bold text-lg opacity-0"></span>
-                        <span id="my-score" class="text-2xl font-black text-emerald-400">0점</span>
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">My Total Score</span>
+                        <span id="last-added-score" class="absolute -top-7 right-0 font-black text-xl opacity-0 pointer-events-none"></span>
+                        <span id="my-score" class="text-3xl font-black text-emerald-400 tracking-tight">0점</span>
                     </div>
                     <!-- 계산기 열기/닫기 버튼 -->
-                    <button onclick="toggleCalculator()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 px-2.5 py-2 rounded-lg font-bold text-xs transition cursor-pointer flex flex-col items-center justify-center gap-0.5 shadow">
-                        <span>🧮</span>
-                        <span>계산기</span>
+                    <button onclick="toggleCalculator()" class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-400 px-3 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer flex flex-col items-center justify-center gap-1 shadow-sm">
+                        <span class="text-base">🧮</span>
+                        <span class="text-[10px]">계산기</span>
                     </button>
                 </div>
             </div>
 
-            <!-- 독립형 독립 미니 계산기 패널 -->
-            <div id="calculator-panel" style="display: none;" class="bg-slate-900/95 p-3 rounded-xl border border-amber-500/40 space-y-2.5 shadow-xl">
-                <div class="flex justify-between items-center pb-1 border-b border-slate-700">
-                    <span class="text-xs font-bold text-amber-400">🧮 미니 독립 계산기</span>
-                    <button onclick="toggleCalculator()" class="text-slate-400 hover:text-white text-xs font-bold cursor-pointer">✕ 닫기</button>
+            <!-- 독립형 미니 계산기 패널 -->
+            <div id="calculator-panel" style="display: none;" class="bg-slate-950 p-4 rounded-2xl border-2 border-amber-500/40 space-y-3 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+                <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                    <span class="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5"><span>🧮</span> 서커스 카드 계산기</span>
+                    <button onclick="toggleCalculator()" class="text-slate-400 hover:text-white text-xs font-bold cursor-pointer bg-slate-800/80 px-2 py-1 rounded-lg">✕ 닫기</button>
                 </div>
                 
                 <!-- 계산기 전용 디스플레이 -->
-                <div id="calc-display" class="w-full bg-slate-950 text-right px-3 py-2 rounded-lg font-mono text-xl font-bold text-amber-300 border border-slate-800 overflow-x-auto">
+                <div id="calc-display" class="w-full bg-slate-900 text-right px-4 py-3 rounded-xl font-mono text-2xl font-black text-amber-300 border border-slate-800 overflow-x-auto shadow-inner">
                     0
                 </div>
 
                 <!-- 계산기 버튼 패드 -->
-                <div class="grid grid-cols-4 gap-1.5">
-                    <button onclick="calcClear()" class="bg-rose-900/80 hover:bg-rose-800 py-2 rounded font-bold text-sm text-rose-200 transition cursor-pointer">C</button>
-                    <button onclick="calcAppend('/')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-base transition cursor-pointer text-amber-400">÷</button>
-                    <button onclick="calcAppend('*')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-base transition cursor-pointer text-amber-400">×</button>
-                    <button onclick="calcAppend('-')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-base transition cursor-pointer text-amber-400">-</button>
+                <div class="grid grid-cols-4 gap-2">
+                    <button onclick="calcClear()" class="bg-rose-950 hover:bg-rose-900 border border-rose-800/50 py-2.5 rounded-xl font-bold text-sm text-rose-300 transition cursor-pointer active:scale-95">C</button>
+                    <button onclick="calcAppend('/')" class="bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl font-bold text-lg transition cursor-pointer text-amber-400 active:scale-95">÷</button>
+                    <button onclick="calcAppend('*')" class="bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl font-bold text-lg transition cursor-pointer text-amber-400 active:scale-95">×</button>
+                    <button onclick="calcAppend('-')" class="bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl font-bold text-lg transition cursor-pointer text-amber-400 active:scale-95">-</button>
 
-                    <button onclick="calcAppend('7')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-base transition cursor-pointer">7</button>
-                    <button onclick="calcAppend('8')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-base transition cursor-pointer">8</button>
-                    <button onclick="calcAppend('9')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-base transition cursor-pointer">9</button>
-                    <button onclick="calcAppend('+')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-base transition cursor-pointer text-amber-400" rowspan="2">+</button>
+                    <button onclick="calcAppend('7')" class="bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl font-bold text-base transition cursor-pointer active:scale-95">7</button>
+                    <button onclick="calcAppend('8')" class="bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl font-bold text-base transition cursor-pointer active:scale-95">8</button>
+                    <button onclick="calcAppend('9')" class="bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl font-bold text-base transition cursor-pointer active:scale-95">9</button>
+                    <button onclick="calcAppend('+')" class="row-span-2 bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl font-bold text-lg transition cursor-pointer text-amber-400 active:scale-95 flex items-center justify-center">+</button>
 
-                    <button onclick="calcAppend('4')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-base transition cursor-pointer">4</button>
-                    <button onclick="calcAppend('5')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-base transition cursor-pointer">5</button>
-                    <button onclick="calcAppend('6')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-base transition cursor-pointer">6</button>
+                    <button onclick="calcAppend('4')" class="bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl font-bold text-base transition cursor-pointer active:scale-95">4</button>
+                    <button onclick="calcAppend('5')" class="bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl font-bold text-base transition cursor-pointer active:scale-95">5</button>
+                    <button onclick="calcAppend('6')" class="bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl font-bold text-base transition cursor-pointer active:scale-95">6</button>
 
-                    <button onclick="calcAppend('1')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-base transition cursor-pointer">1</button>
-                    <button onclick="calcAppend('2')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-base transition cursor-pointer">2</button>
-                    <button onclick="calcAppend('3')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-base transition cursor-pointer">3</button>
-                    <button onclick="calcCalculate()" class="bg-emerald-700 hover:bg-emerald-600 py-2 rounded font-bold text-base transition cursor-pointer text-white">=</button>
+                    <button onclick="calcAppend('1')" class="bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl font-bold text-base transition cursor-pointer active:scale-95">1</button>
+                    <button onclick="calcAppend('2')" class="bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl font-bold text-base transition cursor-pointer active:scale-95">2</button>
+                    <button onclick="calcAppend('3')" class="bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl font-bold text-base transition cursor-pointer active:scale-95">3</button>
+                    <button onclick="calcCalculate()" class="bg-emerald-700 hover:bg-emerald-600 py-2.5 rounded-xl font-bold text-lg transition cursor-pointer text-white active:scale-95">=</button>
 
-                    <button onclick="calcAppend('0')" class="col-span-2 bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-base transition cursor-pointer">0</button>
-                    <button onclick="calcAppend('.')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-base transition cursor-pointer">.</button>
-                    <button onclick="applyCalcResult()" class="bg-blue-600 hover:bg-blue-500 py-2 rounded font-bold text-xs transition cursor-pointer text-white col-span-1">입력란에 넣기</button>
+                    <button onclick="calcAppend('0')" class="col-span-2 bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl font-bold text-base transition cursor-pointer active:scale-95">0</button>
+                    <button onclick="calcAppend('.')" class="bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl font-bold text-base transition cursor-pointer active:scale-95">.</button>
+                    <button onclick="applyCalcResult()" class="bg-blue-600 hover:bg-blue-500 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer text-white col-span-1 active:scale-95 shadow">입력창</button>
                 </div>
             </div>
 
-            <div class="bg-slate-700/30 p-4 rounded-xl border border-slate-700 space-y-3">
-                <h2 class="text-sm font-semibold text-slate-300">내 카드 점수 입력</h2>
+            <!-- 카드 점수 입력 패널 -->
+            <div class="bg-slate-950/40 p-4 rounded-2xl border border-slate-800 space-y-3">
+                <h2 class="text-xs font-black text-amber-400 uppercase tracking-widest">내 카드 점수 획득 & 차감</h2>
 
-                <!-- 점수 입력 및 더하기/빼기 버튼 -->
                 <div class="flex gap-2">
-                    <input type="number" id="card-score-input" placeholder="점수 입력" class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 focus:outline-none focus:border-amber-400 text-lg font-bold">
-                    <button onclick="modifyScore(true)" class="bg-emerald-600 hover:bg-emerald-700 font-bold px-4 py-2 rounded-lg transition cursor-pointer whitespace-nowrap">더하기</button>
-                    <button onclick="modifyScore(false)" class="bg-rose-600 hover:bg-rose-700 font-bold px-4 py-2 rounded-lg transition cursor-pointer whitespace-nowrap">빼기</button>
+                    <input type="number" id="card-score-input" placeholder="점수 입력" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 focus:outline-none focus:border-amber-400 text-lg font-black text-amber-300 shadow-inner">
+                    <button onclick="modifyScore(true)" class="bg-emerald-600 hover:bg-emerald-500 font-bold px-5 py-3 rounded-xl transition cursor-pointer whitespace-nowrap shadow-lg active:scale-95 flex items-center gap-1 text-sm">
+                        <span>➕</span> 더하기
+                    </button>
+                    <button onclick="modifyScore(false)" class="bg-rose-600 hover:bg-rose-500 font-bold px-5 py-3 rounded-xl transition cursor-pointer whitespace-nowrap shadow-lg active:scale-95 flex items-center gap-1 text-sm">
+                        <span>➖</span> 빼기
+                    </button>
                 </div>
 
                 <div class="flex gap-2 pt-1">
-                    <button onclick="resetMyScore()" class="w-1/2 bg-rose-600/80 hover:bg-rose-700 font-medium py-2 rounded-lg text-sm transition cursor-pointer">내 점수 초기화</button>
-                    <button onclick="leaveRoom()" class="w-1/2 bg-slate-600 hover:bg-slate-500 font-medium py-2 rounded-lg text-sm transition cursor-pointer">나가기</button>
+                    <button onclick="resetMyScore()" class="w-1/2 bg-slate-800 hover:bg-rose-950 hover:text-rose-300 hover:border-rose-800 border border-transparent font-bold py-2.5 rounded-xl text-xs transition cursor-pointer text-slate-400">내 점수 초기화</button>
+                    <button onclick="leaveRoom()" class="w-1/2 bg-slate-800 hover:bg-slate-700 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer text-slate-300">서커스 퇴장</button>
                 </div>
             </div>
 
             <!-- 순위 보드 -->
             <div>
-                <h2 class="text-sm font-semibold text-slate-300 mb-2 flex items-center justify-between">
-                    <span>🏆 실시간 순위 보드</span>
+                <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2.5 flex items-center justify-between">
+                    <span>🏆 라이브 순위 보드</span>
                 </h2>
-                <div id="leaderboard" class="space-y-2 max-h-40 overflow-y-auto pr-1"></div>
+                <div id="leaderboard" class="space-y-2 max-h-44 overflow-y-auto pr-1"></div>
             </div>
 
             <!-- 득점 로그 -->
             <div>
-                <h2 class="text-sm font-semibold text-slate-300 mb-2">📜 최근 점수 로그</h2>
-                <div id="score-log-list" class="space-y-1 max-h-32 overflow-y-auto pr-1 text-xs text-slate-400 bg-slate-900/50 p-2 rounded-lg border border-slate-800">
-                    <p>게임이 시작되었습니다.</p>
+                <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">📜 실시간 아크로바틱 로그</h2>
+                <div id="score-log-list" class="space-y-1.5 max-h-32 overflow-y-auto pr-1 text-xs text-slate-400 bg-slate-950/80 p-3 rounded-xl border border-slate-800 shadow-inner">
+                    <p class="text-slate-500 italic">● 서커스 무대에 불이 켜졌습니다.</p>
                 </div>
             </div>
         </div>
 
-        <div class="mt-8 pt-4 border-t border-slate-700 text-center">
-            <p class="text-xs text-slate-500">Made by 천상민</p>
+        <div class="mt-8 pt-4 border-t border-slate-800 text-center">
+            <p class="text-[11px] font-bold text-slate-500 tracking-wider">Designed & Engineered for <span class="text-amber-400 font-black">천상민</span></p>
         </div>
     </div>
 
@@ -148,7 +204,6 @@
         let myPlayerId = null;
         let myCurrentScore = 0;
 
-        // 독립형 계산기 관련 변수
         let calcExpression = "0";
 
         function toggleCalculator() {
@@ -180,7 +235,6 @@
 
         function calcCalculate() {
             try {
-                // 안전하게 수식 계산 (eval 사용)
                 let result = eval(calcExpression);
                 calcExpression = String(result);
                 updateCalcDisplay();
@@ -191,13 +245,12 @@
             }
         }
 
-        // 계산기 결과값을 메인 점수 입력란에 복사하기
         function applyCalcResult() {
             try {
                 let result = eval(calcExpression);
                 if (!isNaN(result)) {
                     document.getElementById('card-score-input').value = Math.round(result);
-                    toggleCalculator(); // 적용 후 계산기 자동 닫기
+                    toggleCalculator();
                 }
             } catch (e) {
                 alert('올바른 계산식이 아닙니다!');
@@ -207,10 +260,10 @@
         function showScoreAnimation(val, isAdd) {
             const el = document.getElementById('last-added-score');
             el.innerText = (isAdd ? `+${val}` : `-${val}`);
-            el.className = `absolute -top-6 right-0 font-bold text-lg opacity-0 ${isAdd ? 'text-emerald-400' : 'text-rose-400'}`;
-            el.classList.remove('animate-score');
+            el.className = `absolute -top-7 right-0 font-black text-xl opacity-0 pointer-events-none ${isAdd ? 'text-emerald-400' : 'text-rose-400'}`;
+            el.classList.remove('animate-score-pop');
             void el.offsetWidth;
-            el.classList.add('animate-score');
+            el.classList.add('animate-score-pop');
         }
 
         async function modifyScore(isAdd) {
@@ -293,8 +346,20 @@
             players.forEach((player, index) => {
                 const isMe = player.id === myPlayerId;
                 const item = document.createElement('div');
-                item.className = `flex justify-between items-center p-3 rounded-lg border ${isMe ? 'bg-amber-500/10 border-amber-500/40' : 'bg-slate-700/40 border-slate-700'}`;
-                item.innerHTML = `<div class="flex items-center gap-3"><span class="w-6 text-center text-lg ${index === 0 ? 'text-amber-400 font-bold' : 'text-slate-400'}">${index + 1}등</span><span class="font-medium text-slate-200">${player.name} ${isMe ? '(나)' : ''}</span></div><span class="font-bold text-lg text-emerald-400">${player.score}점</span>`;
+                
+                let rankBadge = `<span class="w-6 text-center font-black text-slate-400">${index + 1}</span>`;
+                if (index === 0) rankBadge = `<span class="w-6 text-center text-amber-400 font-black">👑</span>`;
+                else if (index === 1) rankBadge = `<span class="w-6 text-center text-slate-300 font-black">🥈</span>`;
+                else if (index === 2) rankBadge = `<span class="w-6 text-center text-amber-600 font-black">🥉</span>`;
+
+                item.className = `flex justify-between items-center p-3.5 rounded-xl border transition-all ${isMe ? 'bg-amber-500/10 border-amber-500/50 shadow-sm' : 'bg-slate-900/60 border-slate-800'}`;
+                item.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        ${rankBadge}
+                        <span class="font-bold text-slate-200 text-sm">${player.name} ${isMe ? '<span class="text-xs text-amber-400 font-black ml-1">(ME)</span>' : ''}</span>
+                    </div>
+                    <span class="font-black text-lg text-emerald-400">${player.score}점</span>
+                `;
                 container.appendChild(item);
             });
         }
@@ -308,11 +373,11 @@
                     const newLog = document.createElement('p');
                     
                     if (payload.payload.type === 'reset') {
-                        newLog.innerHTML = `● ${payload.payload.name}님: <span class="text-amber-400">누적 점수 ${payload.payload.prevScore}점에서 초기화되었습니다.</span>`;
+                        newLog.innerHTML = `● <strong class="text-slate-300">${payload.payload.name}</strong>님: <span class="text-amber-400">누적 점수 ${payload.payload.prevScore}점에서 리셋</span>`;
                     } else {
                         const sign = payload.payload.isAdd ? '+' : '-';
-                        const colorClass = payload.payload.isAdd ? 'text-emerald-400' : 'text-rose-400';
-                        newLog.innerHTML = `● ${payload.payload.name}님: <span class="${colorClass}">${sign}${payload.payload.score}점</span>`;
+                        const colorClass = payload.payload.isAdd ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold';
+                        newLog.innerHTML = `● <strong class="text-slate-300">${payload.payload.name}</strong>님: <span class="${colorClass}">${sign}${payload.payload.score}점</span>`;
                     }
                     
                     logList.prepend(newLog);
